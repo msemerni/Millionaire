@@ -6,6 +6,8 @@ import { router as gameRoutes } from "./routes/gameRoutes.js";
 import { createClient } from "redis";
 require('dotenv').config();
 
+import {encrypt, decrypt} from "./utils/cryptojs";
+
 /////////////////////////////////////
 //// Login:
 //// w@com.ua
@@ -54,7 +56,9 @@ redisClient.connect().then(() => console.log("🟢 Redis connected"));
 
 redisClient.on("error", console.error.bind(console, "Error connection to Redis:"));
 
-const app: Express = express();
+
+const app = require('express')();
+const http = require('http').Server(app);
 
 app.use(
   session({
@@ -83,4 +87,29 @@ app.use(userRoutes, gameRoutes);
 
 app.set("redisClient", redisClient);
 
-app.listen(port, () => console.log(`🟢 ${APP_NAME} app listening on port ${port}`));
+
+
+
+const io = require('socket.io')(http);
+
+io.on('connection', (socket: any) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on('disconnect', function () {
+    console.log(`User disconnected: ${socket.id}`);
+  });
+
+  socket.on('create game', (gameLink: any) => {
+    const token = gameLink.slice(gameLink.lastIndexOf('/') + 1);
+    const [string, iv ] = token.split(":");
+    const decodedToken = JSON.parse(decrypt(string, iv));
+    const roomGameID = decodedToken.gameUUID;
+
+    socket.join(roomGameID);
+    io.to(roomGameID).emit('game created', decodedToken.initiatorUser.login, roomGameID);
+  })
+});
+
+export {io};
+
+http.listen(port, () => console.log(`🟢 ${APP_NAME} app listening on port ${port}`));

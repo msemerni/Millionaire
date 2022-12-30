@@ -1,21 +1,22 @@
-import { Request, Response, Router } from "express";
-import RedisService from "./game-redis-service";
+import { Request, Response } from "express";
 import GameService from "./game-service";
-import { createClient } from "redis";
-import { IMyUser, IUser } from "../../types/project-types";
-const {sign, verify} = require('jsonwebtoken');
-import jwt_decode from "jwt-decode";
-import { IGameToken } from "../../types/project-types";
+import { IUser } from "../../types/project-types";
+import { IGameLinkObject } from "../../types/project-types";
 import { ObjectId } from "mongodb";
+import { io } from '../../server';
 require('dotenv').config();
 
-const { URL, PORT, APP_NAME, SALT } = process.env;
+const { URL, PORT } = process.env;
 
-const StartGame = async (req: Request, res: Response): Promise<void> => {
+const GenerateGameLink = async (req: Request, res: Response): Promise<void> => {
   try {
-    const gameLink = await GameService.startGame();
-    // sess.id === params.hash
-    res.status(200).send(`${gameLink}`);
+    const initiatorUserID: ObjectId = req.session.user._id;
+    const opponentUserID: ObjectId = req.params.id as unknown as ObjectId;
+    const gameName: string = req.params.gamename;
+    const gameLink: string = await GameService.generateGameLink(gameName, initiatorUserID, opponentUserID);
+
+    res.status(200).send({ gameLink });
+
   } catch (error: any) {
     res.status(500).send({ error: error.message });
   }
@@ -23,52 +24,34 @@ const StartGame = async (req: Request, res: Response): Promise<void> => {
 
 const JoinGame = async (req: Request, res: Response): Promise<void> => {
   try {
-
     const sessionUser: IUser = req.session.user;
-    console.log("sessionUser:", sessionUser);
-
     const token: string = req.params.token;
-    console.log("Request(token):", token);
+    const { gameUUID, gameName, initiatorUser, opponentUser }: IGameLinkObject = await GameService.decodeToken(token);
 
-    const decodedToken: IGameToken = jwt_decode(token);
-    console.log("Decoded(token):", decodedToken);
-
-    const initiatorID: ObjectId = decodedToken.initiatorUser._id;
-    const opponentID: ObjectId = decodedToken.opponentUser._id;
-
-    if (!initiatorID || !initiatorID) {
-      throw new Error("User ID not found");
+    if (!(sessionUser._id === initiatorUser._id || sessionUser._id === opponentUser._id)) {
+      res.status(403).send({ status: "error", message: "you are not invited to this game" });
+      return;
     }
-   // Сообщение Мише тут - /game/khgkdhgiubhcvonkej85
-   // нужен ли редирект ?
-   // res.redirect(301, `/game/${opponentID}`); // opponent /game/khgkdhgiubhcvonkej85
 
+    io.to(gameUUID).emit('user connected', opponentUser.login, gameName, gameUUID);
 
-    res.status(200).send(`${sessionUser.login} joined ${APP_NAME} VS  ${sessionUser.login}`);
-
-  } catch (error: any) {
-        res.status(500).send({ error: error.message });
-    }
-}
-
-const GenerateGameLink = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // if (!req.session.user || req.session.user._id || !req.params.id) {
-    //   throw new Error("User ID not found");
-    // }
-
-    const initiatorUserID: any = req.session.user._id;
-    const opponentUserID: string = req.params.id;
-
-    console.log("initiatorUserID: ", initiatorUserID);
-    console.log("opponentUserID: ", opponentUserID);
-    const gameLink = await GameService.generateGameLink(initiatorUserID, opponentUserID);
-
-    res.status(200).send({ "token from server: ": gameLink });
+    res.redirect(`${URL}:${PORT}/${gameName}/${gameUUID}`);
 
   } catch (error: any) {
     res.status(500).send({ error: error.message });
   }
 }
 
-export { JoinGame, StartGame, GenerateGameLink };
+const StartQuiz = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const gameID: string = req.params.id;
+    const gameStatus: string = await GameService.startGame(gameID);
+
+    res.status(200).send(`${gameStatus}`);
+
+  } catch (error: any) {
+    res.status(500).send({ error: error.message });
+  }
+}
+
+export { JoinGame, StartQuiz, GenerateGameLink };

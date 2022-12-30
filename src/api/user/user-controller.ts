@@ -5,7 +5,6 @@ import { IUser } from "../../types/project-types";
 import Joi from "joi";
 import { ObjectId } from "mongodb";
 
-
 const SignUp = async (req: Request, res: Response): Promise<void> => {
   try {
     const user: IUser = req.body;
@@ -28,12 +27,14 @@ const SignUp = async (req: Request, res: Response): Promise<void> => {
     req.session.user = newUser;
 
     const savedUser: {login: string, nick: string | undefined} = { login: newUser.login, nick: newUser.nick }
+    
     res.status(201).send(savedUser);
 
   } catch (error: any) {
     res.status(500).send({error: error.message});
   }
 };
+
 
 const LogIn = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -61,6 +62,7 @@ const LogIn = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
+
 const LogOut = async (req: Request, res: Response): Promise<void> => {
   try {
     req.session.destroy(() => {
@@ -72,6 +74,7 @@ const LogOut = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
+
 const DeleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const user: IUser | null = await UserService.deleteUser(req.params.id);
@@ -81,6 +84,7 @@ const DeleteUser = async (req: Request, res: Response): Promise<void> => {
     }
 
     const deletedUser: { _id: ObjectId, login: string, nick?: string} = { _id: user._id, login: user.login, nick: user.nick };
+    
     res.status(200).send(deletedUser);
     
   } catch (error: any) {
@@ -88,20 +92,23 @@ const DeleteUser = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
+
 const GetAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const users: Array<IUser> | null = await UserService.getAllUsers();
+
     res.status(200).send(users);
+
   } catch (error: any) {
     res.status(500).send({error: error.message});
   }
 }
 
+
 const GetUserById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userID: string = req.params.id;
+    const userID: ObjectId = req.params.id as unknown as ObjectId;
     const userById: IUser | null = await UserService.getUserById(userID)
-    // console.log("userById", userById);
     
     res.status(200).send(userById);
 
@@ -109,5 +116,6 @@ const GetUserById = async (req: Request, res: Response): Promise<void> => {
     res.status(500).send({ error: error.message });
   }
 }
+
 
 export { SignUp, LogIn, LogOut, DeleteUser, GetAllUsers, GetUserById };
