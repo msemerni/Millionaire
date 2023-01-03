@@ -101,7 +101,7 @@ io.on('connection', (socket: any) => {
 
   socket.on('create game', (gameLink: any) => {
     const token = gameLink.slice(gameLink.lastIndexOf('/') + 1);
-    const [string, iv ] = token.split(":");
+    const [string, iv] = token.split(":");
     const decodedToken = JSON.parse(decrypt(string, iv));
     const roomGameID = decodedToken.gameUUID;
 
