@@ -3,7 +3,7 @@ import GameService from "./game-service";
 import { IUser } from "../../types/project-types";
 import { IGameLinkObject } from "../../types/project-types";
 import { ObjectId } from "mongodb";
-import { io } from '../../server';
+// import { io } from '../../server';
 require('dotenv').config();
 
 const { URL, PORT } = process.env;
@@ -26,6 +26,7 @@ const JoinGame = async (req: Request, res: Response): Promise<void> => {
   try {
     const sessionUser: IUser = req.session.user;
     const token: string = req.params.token;
+    const io: any = req.app.get("io");
     const { gameUUID, gameName, initiatorUser, opponentUser }: IGameLinkObject = await GameService.decodeToken(token);
 
     if (!(sessionUser._id === initiatorUser._id || sessionUser._id === opponentUser._id)) {

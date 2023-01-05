@@ -127,3 +127,5 @@ socket.on('user connected', (userName, gameName, gameUUID) => {
   $events.append(newItem(`${userName} connected to game : ${gameUUID}`));
   window.location.href = `http://localhost:8002/${gameName}/${gameUUID}`;
 });
+
+// history.pushState(null, null, window.location.href = `/#/active`);
